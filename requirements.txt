@@ -1,9 +1,7 @@
 numpy
 pandas
 scikit-learn
-surprise
 flask
 psycopg2-binary
-lightfm
 SQLAlchemy
 gunicorn
