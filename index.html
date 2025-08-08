@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Recommendation Engine</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 700px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #4a4e69; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        #userIdInput { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 15px; background-color: #5a67d8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #434190; }
+        #results { margin-top: 20px; }
+        #error { color: #d9534f; font-weight: bold; text-align: center; margin-top: 10px;}
+        ul { list-style-type: none; padding: 0; }
+        li { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .rating-group { display: flex; gap: 5px; }
+        .rating-group input { width: 60px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Get Your Book Recommendations</h1>
+        <div class="input-group">
+            <input type="text" id="userIdInput" placeholder="Enter your User ID (e.g., 276847)">
+            <button onclick="getRecommendations()">Get Books</button>
+        </div>
+        <div id="results">
+            <!-- Recommendations will be displayed here -->
+        </div>
+        <div id="error">
+            <!-- Error messages will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        // Store the current user ID globally for access
+        let currentUserId = null;
+
+        async function getRecommendations() {
+            currentUserId = document.getElementById('userIdInput').value;
+            const resultsDiv = document.getElementById('results');
+            const errorDiv = document.getElementById('error');
+
+            resultsDiv.innerHTML = '';
+            errorDiv.innerHTML = '';
+
+            if (!currentUserId) {
+                errorDiv.innerText = 'Please enter a User ID.';
+                return;
+            }
+
+            try {
+                resultsDiv.innerHTML = '<p>Loading recommendations...</p>';
+                const response = await fetch(`/recommend/${currentUserId}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `An error occurred: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                resultsDiv.innerHTML = '';
+
+                if (data.recommendations && data.recommendations.length > 0) {
+                    const allBooksResponse = await fetch('/get_all_books');
+                    if (!allBooksResponse.ok) throw new Error('Could not fetch book list from server.');
+                    const allBooks = await allBooksResponse.json();
+                    
+                    const ul = document.createElement('ul');
+                    data.recommendations.forEach((rec, index) => {
+                        const book = allBooks.find(b => b.Book_Title === rec.book_title);
+                        const isbn = book ? book.ISBN : 'NOT_FOUND';
+
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${rec.book_title}</span>
+                            <div class="rating-group">
+                                <input type="number" id="rating-input-${index}" min="1" max="10" placeholder="1-10">
+                                <button onclick="submitRating('${isbn}', ${index})">Rate</button>
+                            </div>
+                        `;
+                        ul.appendChild(li);
+                    });
+                    resultsDiv.appendChild(ul);
+                } else {
+                    resultsDiv.innerHTML = '<p>No recommendations found for this user.</p>';
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                errorDiv.innerText = `Error: ${error.message}`;
+            }
+        }
+
+        async function submitRating(isbn, index) {
+            if (isbn === 'NOT_FOUND') {
+                alert('Could not find ISBN for this book. Cannot submit rating.');
+                return;
+            }
+            const ratingInput = document.getElementById(`rating-input-${index}`);
+            const rating = ratingInput.value;
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerText = ''; // Clear previous errors
+
+            if (!rating || rating < 1 || rating > 10) {
+                errorDiv.innerText = 'Please enter a valid rating between 1 and 10.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/rate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: parseInt(currentUserId),
+                        isbn: isbn,
+                        rating: parseInt(rating),
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('Thank you for your rating!');
+                    ratingInput.value = ''; // Clear the input box
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                 errorDiv.innerText = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
