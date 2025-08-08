@@ -14,7 +14,7 @@ db_host = 'localhost'
 db_port = '5432'
 db_name = 'recommendations_db'
 
-db_connection_str = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+db_connection_str = 'postgresql://neondb_owner:npg_Xuog96jEHaKZ@ep-square-lake-adwmn1o8-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 engine = create_engine(db_connection_str)
 
 # --- 2. Load ALL Data from the Database ---
